@@ -9,6 +9,7 @@ class Ipc {
 
     protected string $id;
     protected array $listeners = [];
+    protected array $methods = [];
     protected static string $ipcPath = '/dev/shm/php-ipc';
     protected static int $usleep = 100_000;
 
@@ -21,8 +22,8 @@ class Ipc {
         return $this->sendMessage(new Message($this->id, $receiver, $payload));
     }
 
-    public function call(int $id, string $method, array $args = [], int $timeout = 30): mixed {
-        $call = new CallRequest($method, $args);
+    public function call(string $id, string $method, array $args = [], int $timeout = 30): mixed {
+        $call = new Call($method, $args);
         $this->sendMessage(new Message($this->id, $id, $call));
         $result = null;
         $finished = false;
@@ -43,13 +44,15 @@ class Ipc {
         return $result;
     }
 
-    public function callAsync(int $id, string $method, array $args, callable $callback): void {
-        $call = new CallRequest($method, $args);
+    public function callAsync(string $id, string $method, array $args = [], ?callable $callback = null): void {
+        $call = new Call($method, $args);
         $this->sendMessage(new Message($this->id, $id, $call));
-        $this->setListener($call->getId(), function(mixed $payload) use ($callback, $call) {
-            $this->removeListener($call->getId());
-            call_user_func($callback, $payload);
-        });
+        if($callback) {
+            $this->setListener($call->getId(), function(mixed $payload) use ($callback, $call) {
+                $this->removeListener($call->getId());
+                call_user_func($callback, $payload);
+            });
+        }
     }
 
     public function sendMessage(Message $message): bool {
@@ -66,37 +69,35 @@ class Ipc {
 
             if($callback) call_user_func($callback, $message);
 
-            if($payload instanceof CallRequest) {
-                if($callable = $this->listeners[$payload->getMethod()] ?? false) {
+            if($callable = $this->listeners['message'] ?? null) {
+                call_user_func($callable, $message);
+            }
+
+            if(is_object($payload)) {
+                $class = get_class($payload);
+                if(class_exists($class) && key_exists($class, $this->listeners)) {
+                    call_user_func($this->listeners[$class], $payload, $message);
+                }
+            }
+
+            if($payload instanceof Call) {
+                if($callable = $this->methods[$payload->getMethod()] ?? false) {
                     try {
                         $result = call_user_func_array($callable, $payload->getArgs());
-                        $this->send($message->getSender(), new CallResult($payload->getId(), $result));
                     } catch(Throwable $error) {
-                        $this->send($message->getSender(), new CallResult($payload->getId(), $error));
+                        $result = $error;
                     }
-
                 } else {
-                    $this->send($message->getSender(), new CallResult($payload->getId(), new RuntimeException('No such method: ' . $payload->getMethod())));
+                    $result = new RuntimeException('No such method: ' . $payload->getMethod());
                 }
 
-            } elseif($payload instanceof CallResult) {
+                $this->send($message->getSender(), new Result($payload->getId(), $result));
+
+            } elseif($payload instanceof Result) {
                 if($callable = $this->listeners[$payload->getId()] ?? false) {
                     call_user_func($callable, $payload->getResult());
                 }
-            } else {
-
-                if(gettype($payload) !== 'object') continue;
-
-                $class = get_class($payload);
-                if(class_exists($class) && key_exists($class, $this->listeners)) {
-                    call_user_func($this->listeners[$class], $payload);
-
-                } elseif($callable = $this->listeners['message'] ?? null) {
-                    call_user_func($callable, $message);
-                }
-
             }
-
         }
     }
 
@@ -116,12 +117,16 @@ class Ipc {
         return $messages;
     }
 
-    public function setListener(string $method, callable $callback): void {
-        $this->listeners[$method] = $callback;
+    public function setMethod(string $method, callable $callback): void {
+        $this->methods[$method] = $callback;
     }
 
-    public function removeListener(string $method): void {
-        unset($this->listeners[$method]);
+    public function setListener(string $name, callable $callback): void {
+        $this->listeners[$name] = $callback;
+    }
+
+    public function removeListener(string $name): void {
+        unset($this->listeners[$name]);
     }
 
     public function setMessageListener(callable $callback): void {

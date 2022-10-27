@@ -2,7 +2,7 @@
 
 namespace Yabx\Ipc;
 
-class CallRequest {
+class Call {
 
     protected string $id;
     protected string $method;

@@ -2,7 +2,7 @@
 
 namespace Yabx\Ipc;
 
-class CallResult {
+class Result {
 
     protected string $id;
     protected mixed $result;
