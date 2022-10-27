@@ -1,0 +1,20 @@
+{
+    "name": "yabx/ipc",
+    "version": "0.0.1",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Yabx\\Ipc\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Yauheni Kiryienkau",
+            "email": "ya@yabx.net"
+        }
+    ],
+    "require": {
+        "php": "^8.1"
+    }
+}
