@@ -9,7 +9,7 @@ class Call {
     protected array $args;
 
     public function __construct(string $method, array $args) {
-        $this->id = 'call_' . md5(uniqid());
+        $this->id = Utils::seqId($method);
         $this->method = $method;
         $this->args = $args;
     }

@@ -56,10 +56,9 @@ class Ipc {
     }
 
     public function sendMessage(Message $message): bool {
-        $path = self::$ipcPath . '/' . md5($message->getReceiver());
+        $path = self::$ipcPath . '/' . self::hash($message->getReceiver());
         if(!is_dir($path)) mkdir($path, 0755, true);
-        file_put_contents("{$path}/{$message->getId()}", serialize($message));
-        return true;
+        return (bool)file_put_contents("{$path}/{$message->getId()}", serialize($message));
     }
 
     public function processMessages(?callable $callback = null): void {
@@ -105,7 +104,7 @@ class Ipc {
      * @return Message[]
      */
     protected function getMessages(bool $clear = true): array {
-        $path = self::$ipcPath . '/' . md5($this->id);
+        $path = self::$ipcPath . '/' . self::hash($this->id);
         if(!is_dir($path)) return [];
         $messages = [];
         foreach(glob($path . '/*') as $file) {
@@ -143,6 +142,11 @@ class Ipc {
 
     public static function setIpcPath(string $ipcPath): void {
         self::$ipcPath = $ipcPath;
+    }
+
+    protected static function hash(string $str): string {
+        static $cache = [];
+        return $cache[$str] ?? $cache[$str] = md5($str);
     }
 
 }

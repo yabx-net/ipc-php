@@ -13,7 +13,7 @@ class Message {
     protected DateTimeImmutable $createdAt;
 
     public function __construct(string $sender, string $receiver, mixed $payload) {
-        $this->id = uniqid("msg.{$sender}.{$receiver}.", true);
+        $this->id = Utils::seqId("{$sender}:{$receiver}");
         $this->sender = $sender;
         $this->receiver = $receiver;
         $this->payload = $payload;
