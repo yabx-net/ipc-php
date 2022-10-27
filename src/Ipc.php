@@ -2,7 +2,6 @@
 
 namespace Yabx\Ipc;
 
-use Exception;
 use Throwable;
 use RuntimeException;
 
@@ -32,7 +31,12 @@ class Ipc {
             $result = $payload;
             $this->removeListener($call->getId());
         });
+        $end = time() + $timeout;
         while(!$finished) {
+            if(time() > $end) {
+                $this->removeListener($call->getId());
+                throw new RuntimeException('Call timed out: ' . $method);
+            }
             $this->processMessages();
             $this->usleep();
         }
