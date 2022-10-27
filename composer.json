@@ -1,6 +1,6 @@
 {
     "name": "yabx/ipc",
-    "description": "Simple IPC implementation for PHP",
+    "description": "Simple IPC implementation for PHP based on shared memory",
     "version": "0.1.0",
     "type": "library",
     "license": "MIT",
